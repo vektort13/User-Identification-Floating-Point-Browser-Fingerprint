@@ -1,0 +1,1867 @@
+<!doctype html>
+<!--
+  RU: Vektor T13 Technologies — Floating‑Point & AudioContext Checker (detect.expert)
+  RU: Разработал: Dmytro Momot
+  RU: Сайт: detect.expert
+
+  EN: Vektor T13 Technologies — Floating‑Point & AudioContext Checker (detect.expert)
+  EN: Developed by: Dmytro Momot
+  EN: Site: detect.expert
+
+  ZH-CN: Vektor T13 Technologies — 浮点与 AudioContext 检测器 (detect.expert)
+  ZH-CN: 开发者：Dmytro Momot
+  ZH-CN: 网站：detect.expert
+
+  VI: Vektor T13 Technologies — Trình kiểm tra Floating‑Point & AudioContext (detect.expert)
+  VI: Phát triển bởi: Dmytro Momot
+  VI: Trang: detect.expert
+-->
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vektor T13 — Floating‑Point Checker + AudioContext | detect.expert</title>
+
+  <!--
+    RU: Vektor T13 Technologies (detect.expert) — жёстко запрещаем сеть (fetch/XHR/WebSocket).
+    EN: Vektor T13 Technologies (detect.expert) — block network access (fetch/XHR/WebSocket).
+    ZH-CN: Vektor T13 Technologies (detect.expert) — 禁止网络访问（fetch/XHR/WebSocket）。
+    VI: Vektor T13 Technologies (detect.expert) — chặn truy cập mạng (fetch/XHR/WebSocket).
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' blob: data:;
+                 connect-src 'none';
+                 img-src 'self' blob: data:;
+                 media-src 'self' blob: data:;
+                 style-src 'self' 'unsafe-inline';
+                 script-src 'self' 'unsafe-inline' blob:;">
+
+  <style>
+    :root { color-scheme: light dark; }
+
+    body { margin: 0; font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .container { padding: 24px; max-width: 1900px; margin: 0 auto; }
+
+    .topbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; }
+
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    p { margin: 8px 0 12px; opacity: .9; }
+    .hint { opacity: .75; }
+
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 12px 0 16px; }
+
+    button {
+      padding: 10px 14px;
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      background: transparent;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    label { display: inline-flex; gap: 8px; align-items: center; }
+    input[type="checkbox"] { transform: translateY(1px); }
+
+    /* RU/EN/ZH-CN/VI: Language switcher */
+    .lang { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
+    .lang select { width: 180px; }
+
+    /*
+      RU: Управляющие поля — больше не режем select по ширине
+      EN: Controls — do not clip select width
+      ZH-CN: 控件 — 不再限制 select 的宽度
+      VI: Điều khiển — không cắt bớt chiều rộng select
+    */
+    input[type="number"] {
+      width: 110px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(127,127,127,.45);
+      background: transparent;
+    }
+    select {
+      width: 260px;
+      max-width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(127,127,127,.45);
+      background: transparent;
+    }
+
+    /*
+      RU: Карточки и сетка
+      EN: Cards and grid
+      ZH-CN: 卡片与网格
+      VI: Thẻ và lưới
+    */
+    .grid {
+      display: grid;
+      gap: 14px;
+      align-items: start;
+      grid-template-columns: 1fr; /* RU: мобильный / EN: mobile / ZH-CN: 移动端 / VI: di động */
+    }
+    @media (min-width: 980px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (min-width: 1400px) {
+      .grid { grid-template-columns: 1fr 1.35fr 1fr; }
+    }
+
+    .card {
+      border: 1px solid rgba(127,127,127,.35);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(127,127,127,.04);
+    }
+    .card h2 { font-size: 16px; margin: 0 0 8px; }
+
+    /*
+      RU: Таблицы — фиксируем раскладку + переносим длинные строки
+      EN: Tables — fixed layout + wrap long tokens
+      ZH-CN: 表格 — 固定布局 + 自动换行长字符串
+      VI: Bảng — bố cục cố định + xuống dòng chuỗi dài
+    */
+    .tbl {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .tbl th, .tbl td {
+      text-align: left;
+      padding: 8px 8px;
+      border-top: 1px solid rgba(127,127,127,.25);
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .tbl th { font-weight: 600; }
+
+    /*
+      RU: Колонки для fp/audio таблиц (col-value занимает остаток)
+      EN: Columns for fp/audio tables (value column takes remaining space)
+      ZH-CN: fp/audio 表格列（value 列占用剩余空间）
+      VI: Cột cho bảng fp/audio (cột value chiếm phần còn lại)
+    */
+    #fpTable col.col-status,
+    #audioTable col.col-status { width: 92px; }
+    #fpTable col.col-key { width: 44%; }
+    #audioTable col.col-key { width: 40%; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 64px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(127,127,127,.35);
+      font-size: 12px;
+      white-space: nowrap;
+      background: rgba(127,127,127,.06);
+    }
+    .ok::before { content: "✅"; }
+    .warn::before { content: "⚠️"; }
+    .fail::before { content: "❌"; }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    pre {
+      margin: 0;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(127,127,127,.25);
+      overflow: auto;
+      max-height: 560px;
+      background: rgba(127,127,127,.03);
+    }
+
+    details { margin-top: 14px; }
+    summary { cursor: pointer; }
+
+    .footer { margin-top: 10px; opacity: .75; }
+
+    /* RU: diff‑карточка всегда во всю ширину / EN: diff card spans full width / ZH-CN: diff 卡片占满全宽 / VI: thẻ diff luôn chiếm toàn bộ chiều rộng */
+    #diffCard { grid-column: 1 / -1; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="topbar">
+      <h1 id="pageTitle" data-i18n="ui.title">Vektor T13 — Floating‑Point Checker + AudioContext (detect.expert)</h1>
+
+      <div class="lang">
+        <label for="lang" id="langLabel" data-i18n="ui.langLabel">Язык:</label>
+        <select id="lang" aria-label="Language">
+          <option value="ru">Русский</option>
+          <option value="en">English</option>
+          <option value="zh">中文(简体)</option>
+          <option value="vi">Tiếng Việt</option>
+        </select>
+      </div>
+    </div>
+
+    <p class="hint" id="intro" data-i18n-html="ui.intro">
+      <b>Vektor T13 Technologies</b> — чекер для <b>detect.expert</b>.<br/>
+      Разработал <b>Dmytro Momot</b>.
+      <br/><br/>
+      Страница запускается локально и не делает сетевых запросов (CSP: connect-src 'none').
+      Для сравнения “до/после разгона” используй <b>FP‑профиль</b> (детерминированные тесты + стресс‑инварианты) и <b>бенчи</b> (скорость).
+      FP‑результаты в норме <b>не должны меняться</b>; если меняются/появляются NaN/Inf — это похоже на нестабильность OC.
+    </p>
+
+    <div class="row">
+      <button id="run" data-i18n="btn.run">Запустить тесты</button>
+      <button id="export" disabled data-i18n="btn.export">Экспорт JSON</button>
+      <button id="importBtn" data-i18n="btn.import">Импорт JSON (сравнить)</button>
+      <button id="clear" data-i18n="btn.clear">Очистить</button>
+      <span id="status" class="hint"></span>
+    </div>
+
+    <div class="row">
+      <label>
+        <input type="checkbox" id="raw" />
+        <span data-i18n="opt.raw">Детально (raw значения)</span>
+      </label>
+
+      <label>
+        <input type="checkbox" id="checksum" checked />
+        <span data-i18n="opt.checksum">Checksum offline‑буфера (Audio) (для сравнения)</span>
+      </label>
+
+      <label>
+        <span data-i18n="label.sampleRate">SampleRate:</span>
+        <select id="sr">
+          <option value="auto" data-i18n="sr.auto">auto (как у AudioContext)</option>
+          <option value="44100">44100</option>
+          <option value="48000">48000</option>
+          <option value="96000">96000</option>
+        </select>
+      </label>
+
+      <label>
+        <span data-i18n="label.duration">Длительность (сек):</span>
+        <input id="dur" type="number" min="0.2" step="0.1" value="1.0" />
+      </label>
+
+      <label data-i18n-title="tip.stressN"
+             title="Сколько итераций в стресс‑тесте FP‑инвариантов (sin/cos/exp/log/sqrt). Чем больше — тем чувствительнее, но дольше.">
+        <span data-i18n="label.stressN">FP stress N:</span>
+        <input id="stressN" type="number" min="10000" step="10000" value="200000" />
+      </label>
+
+      <label data-i18n-title="tip.benchMs"
+             title="Целевое время для каждого FP‑бенча. Больше — стабильнее измерение, но дольше.">
+        <span data-i18n="label.benchMs">Bench target (ms):</span>
+        <input id="benchMs" type="number" min="50" step="10" value="250" />
+      </label>
+
+      <label data-i18n-title="tip.benchRuns"
+             title="Сколько прогонов для медианы бенча (лучше нечётное число: 5/7/9).">
+        <span data-i18n="label.benchRuns">Bench runs:</span>
+        <input id="benchRuns" type="number" min="3" step="2" value="7" />
+      </label>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2 data-i18n="card.fpSummary">Floating‑Point (сводка) — Vektor T13</h2>
+        <div class="hint" style="margin-bottom: 8px;" data-i18n-html="card.fpHint">
+          Вся “FP‑часть” для сравнения находится в блоке <span class="mono">FP_SUITE</span> в коде ниже.
+        </div>
+
+        <table class="tbl" id="fpTable">
+          <colgroup>
+            <col class="col-status">
+            <col class="col-key">
+            <col class="col-value">
+          </colgroup>
+          <thead>
+            <tr>
+              <th data-i18n="th.status">Статус</th>
+              <th data-i18n="th.test">Тест</th>
+              <th data-i18n="th.result">Результат</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="card.fpProfile">FP профиль (полный JSON) — detect.expert</h2>
+        <pre id="fpProfile" class="mono">(нажми “Запустить тесты”)</pre>
+        <div class="footer hint" data-i18n="fp.footer">
+          Этот JSON удобно экспортировать и сравнивать “до/после” (diff покажет, что изменилось).
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="card.audio">WebAudio: AudioContext — Vektor T13</h2>
+        <table class="tbl" id="audioTable">
+          <colgroup>
+            <col class="col-status">
+            <col class="col-key">
+            <col class="col-value">
+          </colgroup>
+          <thead>
+            <tr>
+              <th data-i18n="th.status">Статус</th>
+              <th data-i18n="th.check">Проверка</th>
+              <th data-i18n="th.result">Результат</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="footer hint" data-i18n="audio.footer">
+          Примечание: иногда нужен клик пользователя, чтобы ctx.resume() сработал.
+        </div>
+      </div>
+
+      <div class="card" id="diffCard" style="display:none;">
+        <h2 data-i18n="card.diff">Сравнение с импортированным отчётом</h2>
+        <table class="tbl" id="diffTable">
+          <thead>
+            <tr>
+              <th style="width: 260px" data-i18n="diff.key">Ключ</th>
+              <th style="width: 260px" data-i18n="diff.now">Сейчас</th>
+              <th style="width: 260px" data-i18n="diff.import">Импорт</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="footer hint" data-i18n="diff.footer">Показываются только отличающиеся поля.</div>
+      </div>
+    </div>
+
+    <details>
+      <summary data-i18n="details.summary">Что именно тестируется? (Vektor T13 • detect.expert)</summary>
+      <p data-i18n-html="details.body">
+        <b>FP</b>: детерминированные IEEE‑754 проверки (double + float32 через Math.fround), стресс‑инварианты (sin/cos/exp/log/sqrt) и микробенчи (скорость).
+        <br/>
+        <b>Audio</b>: параметры AudioContext и offline‑рендер фиксированного аудиографа
+        (осциллятор → фильтр → waveshaper → compressor → gain), checksum и метрики буфера, плюс время рендера (мс).
+      </p>
+    </details>
+
+    <input id="importFile" type="file" accept="application/json" style="display:none;" />
+
+    <p class="footer hint" id="bottomFooter" data-i18n-html="footer.bottom">
+      © <b>Vektor T13 Technologies</b> • <b>detect.expert</b> • Разработал <b>Dmytro Momot</b>
+    </p>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // RU: Vektor T13 Technologies • detect.expert — Разработал Dmytro Momot
+  // EN: Vektor T13 Technologies • detect.expert — Developed by Dmytro Momot
+  // ZH-CN: Vektor T13 Technologies • detect.expert — 开发者：Dmytro Momot
+  // VI: Vektor T13 Technologies • detect.expert — Phát triển bởi Dmytro Momot
+
+  const $run = document.getElementById('run');
+  const $export = document.getElementById('export');
+  const $importBtn = document.getElementById('importBtn');
+  const $importFile = document.getElementById('importFile');
+  const $clear = document.getElementById('clear');
+  const $status = document.getElementById('status');
+
+  const $raw = document.getElementById('raw');
+  const $checksum = document.getElementById('checksum');
+  const $sr = document.getElementById('sr');
+  const $dur = document.getElementById('dur');
+  const $stressN = document.getElementById('stressN');
+  const $benchMs = document.getElementById('benchMs');
+  const $benchRuns = document.getElementById('benchRuns');
+
+  const $lang = document.getElementById('lang');
+
+  const fpBody = document.querySelector('#fpTable tbody');
+  const audioBody = document.querySelector('#audioTable tbody');
+  const $fpProfile = document.getElementById('fpProfile');
+
+  const diffCard = document.getElementById('diffCard');
+  const diffBody = document.querySelector('#diffTable tbody');
+
+  let lastReport = null;
+  let importedReport = null;
+
+  let currentLang = 'ru';
+  let statusKey = null;
+
+  // ----------------------------------------------------------------------
+  // RU: i18n словарь (RU / EN / ZH-CN / VI)
+  // EN: i18n dictionary (RU / EN / ZH-CN / VI)
+  // ZH-CN: i18n 字典（RU / EN / ZH-CN / VI）
+  // VI: từ điển i18n (RU / EN / ZH-CN / VI)
+  // ----------------------------------------------------------------------
+  const I18N = {
+    ru: {
+      'doc.title': 'Vektor T13 — Floating‑Point Checker + AudioContext | detect.expert',
+      'ui.title': 'Vektor T13 — Floating‑Point Checker + AudioContext (detect.expert)',
+      'ui.langLabel': 'Язык:',
+      'ui.intro': `<b>Vektor T13 Technologies</b> — чекер для <b>detect.expert</b>.<br/>
+Разработал <b>Dmytro Momot</b>.<br/><br/>
+Страница запускается локально и не делает сетевых запросов (CSP: connect-src 'none').
+Для сравнения “до/после разгона” используй <b>FP‑профиль</b> (детерминированные тесты + стресс‑инварианты) и <b>бенчи</b> (скорость).
+FP‑результаты в норме <b>не должны меняться</b>; если меняются/появляются NaN/Inf — это похоже на нестабильность OC.`,
+      'btn.run': 'Запустить тесты',
+      'btn.export': 'Экспорт JSON',
+      'btn.import': 'Импорт JSON (сравнить)',
+      'btn.clear': 'Очистить',
+
+      'opt.raw': 'Детально (raw значения)',
+      'opt.checksum': 'Checksum offline‑буфера (Audio) (для сравнения)',
+
+      'label.sampleRate': 'SampleRate:',
+      'sr.auto': 'auto (как у AudioContext)',
+      'label.duration': 'Длительность (сек):',
+      'label.stressN': 'FP stress N:',
+      'tip.stressN': 'Сколько итераций в стресс‑тесте FP‑инвариантов (sin/cos/exp/log/sqrt). Чем больше — тем чувствительнее, но дольше.',
+      'label.benchMs': 'Bench target (ms):',
+      'tip.benchMs': 'Целевое время для каждого FP‑бенча. Больше — стабильнее измерение, но дольше.',
+      'label.benchRuns': 'Bench runs:',
+      'tip.benchRuns': 'Сколько прогонов для медианы бенча (лучше нечётное число: 5/7/9).',
+
+      'card.fpSummary': 'Floating‑Point (сводка) — Vektor T13',
+      'card.fpHint': `Вся “FP‑часть” для сравнения находится в блоке <span class="mono">FP_SUITE</span> в коде ниже.`,
+      'card.fpProfile': 'FP профиль (полный JSON) — detect.expert',
+      'fp.placeholder': '(нажми “Запустить тесты”)',
+      'fp.footer': 'Этот JSON удобно экспортировать и сравнивать “до/после” (diff покажет, что изменилось).',
+
+      'card.audio': 'WebAudio: AudioContext — Vektor T13',
+      'audio.footer': 'Примечание: иногда нужен клик пользователя, чтобы ctx.resume() сработал.',
+
+      'card.diff': 'Сравнение с импортированным отчётом',
+      'diff.key': 'Ключ',
+      'diff.now': 'Сейчас',
+      'diff.import': 'Импорт',
+      'diff.footer': 'Показываются только отличающиеся поля.',
+      'diff.missing': '(нет)',
+      'diff.match': 'совпадает',
+
+      'details.summary': 'Что именно тестируется? (Vektor T13 • detect.expert)',
+      'details.body': `<b>FP</b>: детерминированные IEEE‑754 проверки (double + float32 через Math.fround), стресс‑инварианты (sin/cos/exp/log/sqrt) и микробенчи (скорость).<br/>
+<b>Audio</b>: параметры AudioContext и offline‑рендер фиксированного аудиографа (осциллятор → фильтр → waveshaper → compressor → gain), checksum и метрики буфера, плюс время рендера (мс).`,
+
+      'footer.bottom': `© <b>Vektor T13 Technologies</b> • <b>detect.expert</b> • Разработал <b>Dmytro Momot</b>`,
+
+      'th.status': 'Статус',
+      'th.test': 'Тест',
+      'th.check': 'Проверка',
+      'th.result': 'Результат',
+
+      'status.running': 'Выполняю тесты…',
+      'status.done': 'Готово.',
+      'status.error': 'Ошибка выполнения тестов.',
+      'status.runFirst': 'Сначала запусти тесты, потом импортируй для сравнения.',
+      'status.diffDone': 'Сравнение готово.',
+      'status.jsonError': 'Не удалось прочитать/распарсить JSON.',
+
+      'tag.ok': 'OK',
+      'tag.warn': 'WARN',
+      'tag.fail': 'FAIL',
+
+      'common.unavailable': 'недоступно',
+      'common.yes': 'да',
+      'common.no': 'нет',
+
+      'row.audioContext': 'AudioContext',
+      'row.available': 'доступен',
+      'row.notSupported': 'не поддерживается',
+      'row.createAudioContext': 'Создание AudioContext',
+      'row.secureContext': 'Secure Context',
+      'row.ctxSampleRate': 'ctx.sampleRate',
+      'row.baseLatency': 'baseLatency',
+      'row.outputLatency': 'outputLatency',
+      'row.realtimeGraph': 'Realtime граф (тихий осциллятор)',
+      'row.offlineAudioContext': 'OfflineAudioContext',
+      'row.offlineRender': 'Offline render',
+      'row.offlineRenderTime': 'Offline render time (ms)',
+      'row.offlineStats': 'Offline stats (mean/rms/peak)',
+      'row.offlineChecksum32': 'Offline checksum32',
+      'row.signalDetected': 'сигнал обнаружен',
+      'row.signalNotDetected': 'сигнал не обнаружен',
+
+      'fmt.offlineRenderRaw': 'sr={sr}, frames={frames}, dur={dur}s',
+      'fmt.offlineRender': 'sr={sr}, dur={dur}s',
+      'fmt.offlineStatsRaw': 'mean={mean}, rms={rms}, peak={peak}, zc={zc}',
+      'fmt.offlineStats': 'rms={rms}, peak={peak}',
+
+      'fp.benchInfo': 'бенчи: смотри ns/iter (меньше = быстрее), берётся медиана',
+      'fp.diagWarn': 'если badCount/nanInfCount > 0 — подозрение на нестабильность (OC/температуры/память)',
+      'fp.diagOk': 'детерминированные FP‑тесты и стресс выглядят норм'
+    },
+
+    en: {
+      'doc.title': 'Vektor T13 — Floating‑Point Checker + AudioContext | detect.expert',
+      'ui.title': 'Vektor T13 — Floating‑Point Checker + AudioContext (detect.expert)',
+      'ui.langLabel': 'Language:',
+      'ui.intro': `<b>Vektor T13 Technologies</b> — a checker for <b>detect.expert</b>.<br/>
+Developed by <b>Dmytro Momot</b>.<br/><br/>
+This page runs locally and makes no network requests (CSP: connect-src 'none').
+To compare “before/after” overclocking, use the <b>FP profile</b> (deterministic tests + stress invariants) and <b>benches</b> (performance).
+FP results normally <b>must not change</b>; changes or NaN/Inf may indicate OC instability.`,
+      'btn.run': 'Run tests',
+      'btn.export': 'Export JSON',
+      'btn.import': 'Import JSON (compare)',
+      'btn.clear': 'Clear',
+
+      'opt.raw': 'Detailed (raw values)',
+      'opt.checksum': 'Offline buffer checksum (Audio) (for comparison)',
+
+      'label.sampleRate': 'Sample rate:',
+      'sr.auto': 'auto (like AudioContext)',
+      'label.duration': 'Duration (sec):',
+      'label.stressN': 'FP stress N:',
+      'tip.stressN': 'How many iterations in the FP invariant stress test (sin/cos/exp/log/sqrt). More = more sensitive, but slower.',
+      'label.benchMs': 'Bench target (ms):',
+      'tip.benchMs': 'Target time for each FP benchmark. Higher = more stable measurement, but slower.',
+      'label.benchRuns': 'Bench runs:',
+      'tip.benchRuns': 'How many runs for the bench median (odd numbers recommended: 5/7/9).',
+
+      'card.fpSummary': 'Floating‑Point (summary) — Vektor T13',
+      'card.fpHint': `All FP logic for “before/after” comparison is inside the <span class="mono">FP_SUITE</span> block below.`,
+      'card.fpProfile': 'FP profile (full JSON) — detect.expert',
+      'fp.placeholder': '(click “Run tests”)',
+      'fp.footer': 'This JSON is convenient to export and compare “before/after” (diff will show what changed).',
+
+      'card.audio': 'WebAudio: AudioContext — Vektor T13',
+      'audio.footer': 'Note: some browsers require a user click for ctx.resume() to work.',
+
+      'card.diff': 'Compare with imported report',
+      'diff.key': 'Key',
+      'diff.now': 'Now',
+      'diff.import': 'Imported',
+      'diff.footer': 'Only changed fields are shown.',
+      'diff.missing': '(missing)',
+      'diff.match': 'match',
+
+      'details.summary': 'What is being tested? (Vektor T13 • detect.expert)',
+      'details.body': `<b>FP</b>: deterministic IEEE‑754 checks (double + float32 via Math.fround), stress invariants (sin/cos/exp/log/sqrt) and micro‑benchmarks (performance).<br/>
+<b>Audio</b>: AudioContext parameters and offline rendering of a fixed audio graph (oscillator → filter → waveshaper → compressor → gain), checksum + buffer metrics, plus render time (ms).`,
+
+      'footer.bottom': `© <b>Vektor T13 Technologies</b> • <b>detect.expert</b> • Developed by <b>Dmytro Momot</b>`,
+
+      'th.status': 'Status',
+      'th.test': 'Test',
+      'th.check': 'Check',
+      'th.result': 'Result',
+
+      'status.running': 'Running tests…',
+      'status.done': 'Done.',
+      'status.error': 'Test error.',
+      'status.runFirst': 'Run tests first, then import to compare.',
+      'status.diffDone': 'Comparison ready.',
+      'status.jsonError': 'Failed to read/parse JSON.',
+
+      'tag.ok': 'OK',
+      'tag.warn': 'WARN',
+      'tag.fail': 'FAIL',
+
+      'common.unavailable': 'unavailable',
+      'common.yes': 'yes',
+      'common.no': 'no',
+
+      'row.audioContext': 'AudioContext',
+      'row.available': 'available',
+      'row.notSupported': 'not supported',
+      'row.createAudioContext': 'Create AudioContext',
+      'row.secureContext': 'Secure Context',
+      'row.ctxSampleRate': 'ctx.sampleRate',
+      'row.baseLatency': 'baseLatency',
+      'row.outputLatency': 'outputLatency',
+      'row.realtimeGraph': 'Realtime graph (quiet oscillator)',
+      'row.offlineAudioContext': 'OfflineAudioContext',
+      'row.offlineRender': 'Offline render',
+      'row.offlineRenderTime': 'Offline render time (ms)',
+      'row.offlineStats': 'Offline stats (mean/rms/peak)',
+      'row.offlineChecksum32': 'Offline checksum32',
+      'row.signalDetected': 'signal detected',
+      'row.signalNotDetected': 'signal not detected',
+
+      'fmt.offlineRenderRaw': 'sr={sr}, frames={frames}, dur={dur}s',
+      'fmt.offlineRender': 'sr={sr}, dur={dur}s',
+      'fmt.offlineStatsRaw': 'mean={mean}, rms={rms}, peak={peak}, zc={zc}',
+      'fmt.offlineStats': 'rms={rms}, peak={peak}',
+
+      'fp.benchInfo': 'benches: look at ns/iter (lower = faster), median is used',
+      'fp.diagWarn': 'if badCount/nanInfCount > 0 — possible instability (OC/thermals/memory)',
+      'fp.diagOk': 'deterministic FP tests and stress look OK'
+    },
+
+    zh: {
+      'doc.title': 'Vektor T13 — 浮点检测 + AudioContext | detect.expert',
+      'ui.title': 'Vektor T13 — 浮点检测 + AudioContext (detect.expert)',
+      'ui.langLabel': '语言：',
+      'ui.intro': `<b>Vektor T13 Technologies</b> — 用于 <b>detect.expert</b> 的检测器。<br/>
+开发者：<b>Dmytro Momot</b>。<br/><br/>
+页面在本地运行，不进行任何网络请求（CSP: connect-src 'none'）。
+用于对比超频前/后：请使用 <b>FP 配置文件</b>（确定性测试 + 压力不变量）与 <b>基准</b>（性能）。
+正常情况下 FP 结果 <b>不应变化</b>；如果变化或出现 NaN/Inf，可能是超频不稳定。`,
+      'btn.run': '运行测试',
+      'btn.export': '导出 JSON',
+      'btn.import': '导入 JSON（对比）',
+      'btn.clear': '清除',
+
+      'opt.raw': '详细（raw 值）',
+      'opt.checksum': '离线缓冲区校验和（Audio）（用于对比）',
+
+      'label.sampleRate': '采样率：',
+      'sr.auto': 'auto（与 AudioContext 一致）',
+      'label.duration': '时长（秒）：',
+      'label.stressN': 'FP 压力 N：',
+      'tip.stressN': 'FP 不变量压力测试的迭代次数（sin/cos/exp/log/sqrt）。次数越多越敏感，但耗时更长。',
+      'label.benchMs': '基准目标（ms）：',
+      'tip.benchMs': '每个 FP 基准的目标时间。越大测量越稳定，但耗时更长。',
+      'label.benchRuns': '基准运行次数：',
+      'tip.benchRuns': '用于计算基准中位数的运行次数（建议奇数：5/7/9）。',
+
+      'card.fpSummary': '浮点（摘要）— Vektor T13',
+      'card.fpHint': `用于“前/后”对比的所有 FP 逻辑都在下方代码的 <span class="mono">FP_SUITE</span> 块中。`,
+      'card.fpProfile': 'FP 配置文件（完整 JSON）— detect.expert',
+      'fp.placeholder': '（点击“运行测试”）',
+      'fp.footer': '该 JSON 便于导出并用于“前/后”对比（diff 会显示变化项）。',
+
+      'card.audio': 'WebAudio：AudioContext — Vektor T13',
+      'audio.footer': '提示：有时需要用户点击才能让 ctx.resume() 生效。',
+
+      'card.diff': '与导入报告对比',
+      'diff.key': '键',
+      'diff.now': '当前',
+      'diff.import': '导入',
+      'diff.footer': '仅显示有差异的字段。',
+      'diff.missing': '（缺失）',
+      'diff.match': '一致',
+
+      'details.summary': '具体测试哪些内容？(Vektor T13 • detect.expert)',
+      'details.body': `<b>FP</b>：确定性 IEEE‑754 检查（double + 通过 Math.fround 的 float32）、压力不变量（sin/cos/exp/log/sqrt）以及微基准（性能）。<br/>
+<b>Audio</b>：AudioContext 参数与固定音频图的离线渲染（振荡器 → 滤波器 → waveshaper → compressor → gain），缓冲区校验和与指标，以及渲染时间（毫秒）。`,
+
+      'footer.bottom': `© <b>Vektor T13 Technologies</b> • <b>detect.expert</b> • 开发者：<b>Dmytro Momot</b>`,
+
+      'th.status': '状态',
+      'th.test': '测试',
+      'th.check': '检查',
+      'th.result': '结果',
+
+      'status.running': '正在运行测试…',
+      'status.done': '完成。',
+      'status.error': '测试出错。',
+      'status.runFirst': '请先运行测试，然后导入以对比。',
+      'status.diffDone': '对比完成。',
+      'status.jsonError': '无法读取/解析 JSON。',
+
+      'tag.ok': 'OK',
+      'tag.warn': '警告',
+      'tag.fail': '失败',
+
+      'common.unavailable': '不可用',
+      'common.yes': '是',
+      'common.no': '否',
+
+      'row.audioContext': 'AudioContext',
+      'row.available': '可用',
+      'row.notSupported': '不支持',
+      'row.createAudioContext': '创建 AudioContext',
+      'row.secureContext': '安全上下文',
+      'row.ctxSampleRate': 'ctx.sampleRate',
+      'row.baseLatency': 'baseLatency',
+      'row.outputLatency': 'outputLatency',
+      'row.realtimeGraph': '实时图（静音振荡器）',
+      'row.offlineAudioContext': 'OfflineAudioContext',
+      'row.offlineRender': '离线渲染',
+      'row.offlineRenderTime': '离线渲染时间（ms）',
+      'row.offlineStats': '离线统计（mean/rms/peak）',
+      'row.offlineChecksum32': '离线 checksum32',
+      'row.signalDetected': '检测到信号',
+      'row.signalNotDetected': '未检测到信号',
+
+      'fmt.offlineRenderRaw': 'sr={sr}，帧={frames}，时长={dur}s',
+      'fmt.offlineRender': 'sr={sr}，时长={dur}s',
+      'fmt.offlineStatsRaw': 'mean={mean}，rms={rms}，peak={peak}，zc={zc}',
+      'fmt.offlineStats': 'rms={rms}，peak={peak}',
+
+      'fp.benchInfo': '基准：查看 ns/iter（越小越快），使用中位数',
+      'fp.diagWarn': '如果 badCount/nanInfCount > 0 — 可能不稳定（超频/温度/内存）',
+      'fp.diagOk': '确定性 FP 测试与压力测试正常'
+    },
+
+    vi: {
+      'doc.title': 'Vektor T13 — Floating‑Point Checker + AudioContext | detect.expert',
+      'ui.title': 'Vektor T13 — Kiểm tra Floating‑Point + AudioContext (detect.expert)',
+      'ui.langLabel': 'Ngôn ngữ:',
+      'ui.intro': `<b>Vektor T13 Technologies</b> — checker cho <b>detect.expert</b>.<br/>
+Phát triển bởi <b>Dmytro Momot</b>.<br/><br/>
+Trang chạy cục bộ và không thực hiện yêu cầu mạng (CSP: connect-src 'none').
+Để so sánh “trước/sau” ép xung, hãy dùng <b>FP profile</b> (test xác định + bất biến stress) và <b>bench</b> (hiệu năng).
+Kết quả FP bình thường <b>không được thay đổi</b>; nếu thay đổi/xuất hiện NaN/Inf thì có thể OC không ổn định.`,
+      'btn.run': 'Chạy kiểm tra',
+      'btn.export': 'Xuất JSON',
+      'btn.import': 'Nhập JSON (so sánh)',
+      'btn.clear': 'Xóa',
+
+      'opt.raw': 'Chi tiết (giá trị raw)',
+      'opt.checksum': 'Checksum bộ đệm offline (Audio) (để so sánh)',
+
+      'label.sampleRate': 'Tần số lấy mẫu:',
+      'sr.auto': 'auto (như AudioContext)',
+      'label.duration': 'Thời lượng (giây):',
+      'label.stressN': 'FP stress N:',
+      'tip.stressN': 'Số vòng lặp trong stress‑test bất biến FP (sin/cos/exp/log/sqrt). Nhiều hơn = nhạy hơn, nhưng lâu hơn.',
+      'label.benchMs': 'Mục tiêu bench (ms):',
+      'tip.benchMs': 'Thời gian mục tiêu cho mỗi FP bench. Lớn hơn = đo ổn định hơn, nhưng lâu hơn.',
+      'label.benchRuns': 'Số lần bench:',
+      'tip.benchRuns': 'Số lần chạy để lấy median của bench (nên là số lẻ: 5/7/9).',
+
+      'card.fpSummary': 'Floating‑Point (tóm tắt) — Vektor T13',
+      'card.fpHint': `Toàn bộ logic FP để so sánh “trước/sau” nằm trong khối <span class="mono">FP_SUITE</span> bên dưới.`,
+      'card.fpProfile': 'FP profile (JSON đầy đủ) — detect.expert',
+      'fp.placeholder': '(nhấn “Chạy kiểm tra”)',
+      'fp.footer': 'JSON này tiện để xuất và so sánh “trước/sau” (diff sẽ cho thấy thay đổi).',
+
+      'card.audio': 'WebAudio: AudioContext — Vektor T13',
+      'audio.footer': 'Lưu ý: đôi khi cần click người dùng để ctx.resume() hoạt động.',
+
+      'card.diff': 'So sánh với báo cáo đã nhập',
+      'diff.key': 'Khóa',
+      'diff.now': 'Hiện tại',
+      'diff.import': 'Nhập',
+      'diff.footer': 'Chỉ hiển thị các trường khác nhau.',
+      'diff.missing': '(không có)',
+      'diff.match': 'khớp',
+
+      'details.summary': 'Đang kiểm tra những gì? (Vektor T13 • detect.expert)',
+      'details.body': `<b>FP</b>: kiểm tra IEEE‑754 xác định (double + float32 qua Math.fround), bất biến stress (sin/cos/exp/log/sqrt) và micro‑bench (hiệu năng).<br/>
+<b>Audio</b>: tham số AudioContext và render offline của audio graph cố định (oscillator → filter → waveshaper → compressor → gain), checksum + chỉ số buffer, và thời gian render (ms).`,
+
+      'footer.bottom': `© <b>Vektor T13 Technologies</b> • <b>detect.expert</b> • Phát triển bởi <b>Dmytro Momot</b>`,
+
+      'th.status': 'Trạng thái',
+      'th.test': 'Bài test',
+      'th.check': 'Kiểm tra',
+      'th.result': 'Kết quả',
+
+      'status.running': 'Đang chạy…',
+      'status.done': 'Xong.',
+      'status.error': 'Lỗi khi chạy kiểm tra.',
+      'status.runFirst': 'Hãy chạy kiểm tra trước, rồi nhập để so sánh.',
+      'status.diffDone': 'So sánh xong.',
+      'status.jsonError': 'Không thể đọc/parse JSON.',
+
+      'tag.ok': 'OK',
+      'tag.warn': 'CẢNH',
+      'tag.fail': 'LỖI',
+
+      'common.unavailable': 'không khả dụng',
+      'common.yes': 'có',
+      'common.no': 'không',
+
+      'row.audioContext': 'AudioContext',
+      'row.available': 'có',
+      'row.notSupported': 'không hỗ trợ',
+      'row.createAudioContext': 'Tạo AudioContext',
+      'row.secureContext': 'Secure Context',
+      'row.ctxSampleRate': 'ctx.sampleRate',
+      'row.baseLatency': 'baseLatency',
+      'row.outputLatency': 'outputLatency',
+      'row.realtimeGraph': 'Realtime graph (oscillator nhỏ)',
+      'row.offlineAudioContext': 'OfflineAudioContext',
+      'row.offlineRender': 'Offline render',
+      'row.offlineRenderTime': 'Thời gian offline render (ms)',
+      'row.offlineStats': 'Offline stats (mean/rms/peak)',
+      'row.offlineChecksum32': 'Offline checksum32',
+      'row.signalDetected': 'phát hiện tín hiệu',
+      'row.signalNotDetected': 'không phát hiện tín hiệu',
+
+      'fmt.offlineRenderRaw': 'sr={sr}, frames={frames}, dur={dur}s',
+      'fmt.offlineRender': 'sr={sr}, dur={dur}s',
+      'fmt.offlineStatsRaw': 'mean={mean}, rms={rms}, peak={peak}, zc={zc}',
+      'fmt.offlineStats': 'rms={rms}, peak={peak}',
+
+      'fp.benchInfo': 'bench: xem ns/iter (nhỏ hơn = nhanh hơn), dùng median',
+      'fp.diagWarn': 'nếu badCount/nanInfCount > 0 — có thể không ổn định (OC/nhiệt/ram)',
+      'fp.diagOk': 'FP deterministic tests và stress trông ổn'
+    }
+  };
+
+  const SUPPORTED_LANGS = ['ru', 'en', 'zh', 'vi'];
+
+  function t(key) {
+    return (I18N[currentLang] && I18N[currentLang][key]) ||
+           (I18N.en && I18N.en[key]) ||
+           key;
+  }
+
+  function tpl(str, vars) {
+    return String(str).replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
+  }
+
+  function setStatus(msg) {
+    statusKey = null;
+    $status.textContent = msg;
+  }
+
+  function setStatusKey(k) {
+    statusKey = k;
+    $status.textContent = t(k);
+  }
+
+  function applyStaticI18N() {
+    document.documentElement.lang = (currentLang === 'zh') ? 'zh-CN' : currentLang;
+    document.title = t('doc.title');
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.dataset.i18n);
+    });
+
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+      el.innerHTML = t(el.dataset.i18nHtml);
+    });
+
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      el.title = t(el.dataset.i18nTitle);
+    });
+  }
+
+  function applyDynamicI18N() {
+    if (!lastReport) $fpProfile.textContent = t('fp.placeholder');
+    if (statusKey) $status.textContent = t(statusKey);
+  }
+
+  function setLanguage(lang, { persist = true, rerender = true } = {}) {
+    const next = SUPPORTED_LANGS.includes(lang) ? lang : 'ru';
+    currentLang = next;
+    $lang.value = next;
+
+    if (persist) {
+      try { localStorage.setItem('vt13_lang', next); } catch {}
+    }
+
+    applyStaticI18N();
+    applyDynamicI18N();
+
+    if (rerender) rebuildFromLastReport();
+  }
+
+  function detectInitialLang() {
+    try {
+      const saved = localStorage.getItem('vt13_lang');
+      if (SUPPORTED_LANGS.includes(saved)) return saved;
+    } catch {}
+
+    const nav = (navigator.language || 'en').toLowerCase();
+    if (nav.startsWith('ru')) return 'ru';
+    if (nav.startsWith('zh')) return 'zh';
+    if (nav.startsWith('vi')) return 'vi';
+    return 'en';
+  }
+
+  function levelLabel(level) {
+    if (level === 'ok') return t('tag.ok');
+    if (level === 'warn') return t('tag.warn');
+    return t('tag.fail');
+  }
+
+  function clearTables() {
+    fpBody.innerHTML = '';
+    audioBody.innerHTML = '';
+    diffBody.innerHTML = '';
+    diffCard.style.display = 'none';
+    $fpProfile.textContent = t('fp.placeholder');
+    setStatus('');
+    lastReport = null;
+    importedReport = null;
+    $export.disabled = true;
+  }
+
+  function addRow(tbody, level, title, value) {
+    const tr = document.createElement('tr');
+    const tdStatus = document.createElement('td');
+    const tdTitle = document.createElement('td');
+    const tdValue = document.createElement('td');
+
+    const tag = document.createElement('span');
+    tag.className = `tag ${level}`;
+    tag.textContent = levelLabel(level);
+    tdStatus.appendChild(tag);
+
+    tdTitle.textContent = title;
+
+    const span = document.createElement('span');
+    span.className = 'mono';
+    span.textContent = String(value);
+    tdValue.appendChild(span);
+
+    tr.appendChild(tdStatus);
+    tr.appendChild(tdTitle);
+    tr.appendChild(tdValue);
+    tbody.appendChild(tr);
+  }
+
+  function fmt(n) {
+    if (typeof n !== 'number') return String(n);
+    if (!Number.isFinite(n)) return String(n);
+    return (Math.abs(n) >= 1e6 || Math.abs(n) < 1e-6) ? n.toExponential(8) : n.toPrecision(12);
+  }
+
+  function bucketSampleRate(sr) {
+    if (typeof sr !== 'number' || !isFinite(sr)) return t('common.unavailable');
+    if (Math.abs(sr - 44100) < 1) return '≈ 44.1 kHz';
+    if (Math.abs(sr - 48000) < 1) return '≈ 48 kHz';
+    return `≈ ${Math.round(sr / 100) * 100} Hz`;
+  }
+
+  function bucketLatencySeconds(sec) {
+    if (typeof sec !== 'number' || !isFinite(sec)) return t('common.unavailable');
+    const ms = sec * 1000;
+    if (ms < 10) return '< 10 ms';
+    if (ms < 25) return '10–25 ms';
+    if (ms < 50) return '25–50 ms';
+    if (ms < 100) return '50–100 ms';
+    return '> 100 ms';
+  }
+
+  function checksum32FromFloat32(arr) {
+    let h = 0x811c9dc5;
+    const step = Math.max(1, Math.floor(arr.length / 20000));
+    for (let i = 0; i < arr.length; i += step) {
+      const q = Math.max(-2147483648, Math.min(2147483647, Math.round(arr[i] * 1e6))) | 0;
+      h ^= (q       ) & 0xff; h = Math.imul(h, 0x01000193);
+      h ^= (q >>>  8) & 0xff; h = Math.imul(h, 0x01000193);
+      h ^= (q >>> 16) & 0xff; h = Math.imul(h, 0x01000193);
+      h ^= (q >>> 24) & 0xff; h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function computeStats(arr) {
+    let min = Infinity, max = -Infinity, sum = 0, sumSq = 0;
+    let zc = 0;
+    let prev = arr[0] || 0;
+
+    for (let i = 0; i < arr.length; i++) {
+      const x = arr[i];
+      if (x < min) min = x;
+      if (x > max) max = x;
+      sum += x;
+      sumSq += x * x;
+
+      if ((prev <= 0 && x > 0) || (prev >= 0 && x < 0)) zc++;
+      prev = x;
+    }
+
+    const mean = sum / arr.length;
+    const rms = Math.sqrt(sumSq / arr.length);
+    const peak = Math.max(Math.abs(min), Math.abs(max));
+    return { min, max, mean, rms, peak, zeroCrossings: zc };
+  }
+
+  // ======================================================================
+  // RU: Vektor T13 Technologies (detect.expert) — FP_SUITE: FP‑вычисления для сравнения “до/после”. Разработал Dmytro Momot.
+  // EN: Vektor T13 Technologies (detect.expert) — FP_SUITE: FP computations for “before/after” comparison. Developed by Dmytro Momot.
+  // ZH-CN: Vektor T13 Technologies (detect.expert) — FP_SUITE：用于“前/后”对比的 FP 计算。开发者：Dmytro Momot.
+  // VI: Vektor T13 Technologies (detect.expert) — FP_SUITE: tính toán FP để so sánh “trước/sau”. Phát triển bởi Dmytro Momot.
+  // ======================================================================
+  const FP_SUITE = (() => {
+    const buf8 = new ArrayBuffer(8);
+    const dv8 = new DataView(buf8);
+    const buf4 = new ArrayBuffer(4);
+    const dv4 = new DataView(buf4);
+
+    function f64Hex(x) {
+      dv8.setFloat64(0, x, false);
+      const hi = dv8.getUint32(0, false).toString(16).padStart(8, '0');
+      const lo = dv8.getUint32(4, false).toString(16).padStart(8, '0');
+      return '0x' + hi + lo;
+    }
+    function f32Hex(x) {
+      dv4.setFloat32(0, x, false);
+      const u = dv4.getUint32(0, false).toString(16).padStart(8, '0');
+      return '0x' + u;
+    }
+
+    function hasBigIntU64() {
+      return typeof dv8.getBigUint64 === 'function' && typeof BigInt === 'function';
+    }
+    function f64ToOrderedBigInt(x) {
+      dv8.setFloat64(0, x, false);
+      let bits = dv8.getBigUint64(0, false);
+      const sign = bits >> 63n;
+      return sign ? (~bits & 0xffffffffffffffffn) : (bits | 0x8000000000000000n);
+    }
+    function ulpDiff64(a, b) {
+      if (!hasBigIntU64()) return null;
+      const ia = f64ToOrderedBigInt(a);
+      const ib = f64ToOrderedBigInt(b);
+      return (ia >= ib) ? (ia - ib) : (ib - ia);
+    }
+
+    function makeLCG(seed = 0x12345678) {
+      let s = seed >>> 0;
+      return () => {
+        s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
+    }
+
+    function addTest(list, key, value, expectedHint, level = 'ok') {
+      list.push({ key, level, value, expectedHint });
+    }
+
+    function runDeterministicTests(opts) {
+      const raw = !!opts.raw;
+      const tests = [];
+
+      addTest(
+        tests,
+        'fp/Number.EPSILON',
+        Number.EPSILON,
+        '2^-52',
+        (Number.EPSILON === Math.pow(2, -52)) ? 'ok' : 'warn'
+      );
+
+      const s = 0.1 + 0.2;
+      addTest(tests, 'fp/0.1+0.2', s, 'ожидаемо != 0.3', (s === 0.3) ? 'warn' : 'ok');
+
+      addTest(tests, 'fp/isNegZero', Object.is(-0, -0), 'true', Object.is(-0, -0) ? 'ok' : 'warn');
+      addTest(tests, 'fp/1_div_-0', 1 / (-0), '-Infinity', (1/(-0) === -Infinity) ? 'ok' : 'warn');
+      addTest(tests, 'fp/1_div_+0', 1 / (0), '+Infinity', (1/(0) === Infinity) ? 'ok' : 'warn');
+
+      addTest(tests, 'fp/isNaN(0/0)', Number.isNaN(0/0), 'true', Number.isNaN(0/0) ? 'ok' : 'fail');
+      addTest(tests, 'fp/min(1,NaN)', Math.min(1, NaN), 'NaN', Number.isNaN(Math.min(1, NaN)) ? 'ok' : 'warn');
+      addTest(tests, 'fp/overflow_1e308x2', 1e308 * 2, 'Infinity', ((1e308 * 2) === Infinity) ? 'ok' : 'warn');
+
+      const f13 = Math.fround(1/3);
+      addTest(
+        tests,
+        'fp/f32_fround(1/3)',
+        raw ? { value: f13, hex: f32Hex(f13) } : f13,
+        '≈ 0.3333333432674408',
+        (f13 === 0.3333333432674408) ? 'ok' : 'warn'
+      );
+
+      const sub = Math.fround(1e-45);
+      addTest(
+        tests,
+        'fp/f32_subnormal_info',
+        raw ? { value: sub, hex: f32Hex(sub) } : (sub === 0 ? 'flush-to-zero/round-to-zero' : 'subnormal visible'),
+        'инфо',
+        'ok'
+      );
+
+      const fI = Math.fround(16777217);
+      addTest(
+        tests,
+        'fp/f32_int_boundary',
+        raw ? { value: fI, hex: f32Hex(fI) } : fI,
+        'ожидаемо 16777216',
+        (fI === 16777216) ? 'ok' : 'warn'
+      );
+
+      const ms = Number.MAX_SAFE_INTEGER;
+      addTest(tests, 'fp/MAX_SAFE_INTEGER', ms, '9007199254740991', (ms === 9007199254740991) ? 'ok' : 'warn');
+      addTest(tests, 'fp/MAX_SAFE_INTEGER_plus1_minus', (ms + 1) - ms, 'показывает потерю точности', 'ok');
+
+      const a = 1e16, b = -1e16, c = 1;
+      const r1 = (a + b) + c;
+      const r2 = a + (b + c);
+      const ulp = ulpDiff64(r1, r2);
+      addTest(
+        tests,
+        'fp/non_associative',
+        raw ? { r1, r2, ulp: (ulp === null ? 'n/a' : String(ulp)) } : `${r1} vs ${r2}`,
+        'ожидаемо различие',
+        (r1 !== r2) ? 'ok' : 'warn'
+      );
+
+      if (raw) {
+        const vals = {
+          pi: Math.PI,
+          e: Math.E,
+          sqrt2: Math.SQRT2,
+          ln2: Math.LN2,
+          tiny: Number.MIN_VALUE,
+          max: Number.MAX_VALUE
+        };
+        const hex = {};
+        for (const k of Object.keys(vals)) hex[k] = f64Hex(vals[k]);
+        addTest(tests, 'fp/f64_hex_constants', hex, 'инфо', 'ok');
+      }
+
+      return tests;
+    }
+
+    function runInvariantStress(opts) {
+      const N = Math.max(10_000, Math.min(2_000_000, opts.stressN || 200_000));
+      const rand = makeLCG(opts.seed ?? 0xC0FFEE);
+
+      let maxErrSin = 0;
+      let maxRelExpLog = 0;
+      let maxRelSqrt = 0;
+      let maxRelInv = 0;
+
+      let bad = 0;
+      let nanInf = 0;
+
+      for (let i = 0; i < N; i++) {
+        const x = (rand() * 2 - 1) * 1000;
+        const y = rand() * 1000 + 1e-12;
+
+        const s = Math.sin(x);
+        const c = Math.cos(x);
+        const sc = s*s + c*c;
+        const errSin = Math.abs(sc - 1);
+        if (!Number.isFinite(errSin)) { nanInf++; continue; }
+        if (errSin > maxErrSin) maxErrSin = errSin;
+
+        const el = Math.exp(Math.log(y));
+        const rel1 = Math.abs(el - y) / y;
+        if (!Number.isFinite(rel1)) { nanInf++; continue; }
+        if (rel1 > maxRelExpLog) maxRelExpLog = rel1;
+
+        const sq = Math.sqrt(y);
+        const sq2 = sq * sq;
+        const rel2 = Math.abs(sq2 - y) / y;
+        if (!Number.isFinite(rel2)) { nanInf++; continue; }
+        if (rel2 > maxRelSqrt) maxRelSqrt = rel2;
+
+        const inv = 1 / (1 / y);
+        const rel3 = Math.abs(inv - y) / y;
+        if (!Number.isFinite(rel3)) { nanInf++; continue; }
+        if (rel3 > maxRelInv) maxRelInv = rel3;
+
+        if (errSin > 1e-6 || rel1 > 1e-10 || rel2 > 1e-10 || rel3 > 1e-10) bad++;
+      }
+
+      return {
+        N,
+        seed: opts.seed ?? 0xC0FFEE,
+        maxAbsErr_sin2cos2: maxErrSin,
+        maxRelErr_expLog: maxRelExpLog,
+        maxRelErr_sqrt2: maxRelSqrt,
+        maxRelErr_invInv: maxRelInv,
+        badCount: bad,
+        nanInfCount: nanInf
+      };
+    }
+
+    function benchMedian(label, workFn, cfg = {}) {
+      const targetMs = Math.max(30, cfg.targetMs ?? 250);
+      const runs = Math.max(3, cfg.runs ?? 7);
+      const warmup = Math.max(0, cfg.warmup ?? 1);
+      const maxIters = cfg.maxIters ?? (1 << 28);
+
+      let sink = 0;
+
+      function timeOnce(iters) {
+        const t0 = performance.now();
+        sink ^= (workFn(iters) | 0);
+        const t1 = performance.now();
+        return t1 - t0;
+      }
+
+      for (let i = 0; i < warmup; i++) timeOnce(1 << 14);
+
+      let iters = 1 << 14;
+      while (iters < maxIters) {
+        const ms = timeOnce(iters);
+        if (ms >= targetMs) break;
+        iters <<= 1;
+      }
+
+      const samples = [];
+      for (let i = 0; i < runs; i++) samples.push(timeOnce(iters));
+      samples.sort((a, b) => a - b);
+
+      const medianMs = samples[Math.floor(samples.length / 2)];
+      const nsPerIter = (medianMs * 1e6) / iters;
+
+      return { label, iters, medianMs, nsPerIter, _sink: sink };
+    }
+
+    function runPerformanceBenches(opts) {
+      const raw = !!opts.raw;
+      const benchCfg = opts.benchCfg || { targetMs: 250, runs: 7, warmup: 1 };
+
+      const benches = [];
+
+      benches.push(benchMedian('bench/double_addmul', (n) => {
+        let x = 1.0000001, y = 1.0000002;
+        for (let i = 0; i < n; i++) {
+          x = x * 1.0000001 + y;
+          y = y * 0.9999999 + x;
+        }
+        return (x + y);
+      }, benchCfg));
+
+      benches.push(benchMedian('bench/float32_fround_addmul', (n) => {
+        let x = Math.fround(1.0000001), y = Math.fround(1.0000002);
+        for (let i = 0; i < n; i++) {
+          x = Math.fround(Math.fround(x * 1.0000001) + y);
+          y = Math.fround(Math.fround(y * 0.9999999) + x);
+        }
+        return (x + y);
+      }, benchCfg));
+
+      benches.push(benchMedian('bench/math_sin_cos', (n) => {
+        let x = 0.123456789;
+        for (let i = 0; i < n; i++) {
+          x = Math.sin(x) + Math.cos(x * 1.0000001);
+        }
+        return x;
+      }, { ...benchCfg, targetMs: Math.max(benchCfg.targetMs ?? 250, 300) }));
+
+      const len = 1 << 20;
+      const base = new Float32Array(len);
+      for (let i = 0; i < len; i++) base[i] = (i % 97) / 97;
+      const arr = new Float32Array(len);
+
+      benches.push(benchMedian('bench/Float32Array_scale', (n) => {
+        arr.set(base);
+        let acc = 0;
+        const passes = Math.max(1, Math.floor(n / 4096));
+        for (let p = 0; p < passes; p++) {
+          for (let i = 0; i < len; i++) {
+            arr[i] = Math.fround(arr[i] * 1.0001);
+            acc += arr[i];
+          }
+        }
+        return acc;
+      }, { ...benchCfg, targetMs: Math.max(benchCfg.targetMs ?? 250, 300) }));
+
+      if (!raw) {
+        for (const b of benches) {
+          b.medianMs = Number(b.medianMs.toFixed(3));
+          b.nsPerIter = Number(b.nsPerIter.toFixed(1));
+        }
+      }
+
+      for (const b of benches) delete b._sink;
+
+      return benches;
+    }
+
+    function run(opts = {}) {
+      const raw = !!opts.raw;
+
+      const deterministicTests = runDeterministicTests({ raw });
+      const stressInvariants = runInvariantStress({
+        seed: opts.seed ?? 0xC0FFEE,
+        stressN: opts.stressN ?? 200_000
+      });
+
+      const performanceBenches = runPerformanceBenches({
+        raw,
+        benchCfg: opts.benchCfg || { targetMs: 250, runs: 7, warmup: 1 }
+      });
+
+      return {
+        meta: {
+          raw,
+          seed: opts.seed ?? 0xC0FFEE,
+          stressN: opts.stressN ?? 200_000,
+          benchCfg: opts.benchCfg || { targetMs: 250, runs: 7, warmup: 1 }
+        },
+        deterministicTests,
+        stressInvariants,
+        performanceBenches
+      };
+    }
+
+    return { run };
+  })();
+
+  function buildFpReport(report, fpProfile) {
+    report.fp = [];
+    for (const t of fpProfile.deterministicTests) {
+      report.fp.push({ key: t.key, level: t.level, value: t.value });
+    }
+
+    const st = fpProfile.stressInvariants;
+    const stressLevel = (st.nanInfCount > 0 || st.badCount > 0) ? 'warn' : 'ok';
+    report.fp.push({ key: 'fp/stress/N', level: 'ok', value: st.N });
+    report.fp.push({ key: 'fp/stress/seed', level: 'ok', value: st.seed });
+    report.fp.push({ key: 'fp/stress/maxAbsErr_sin2cos2', level: 'ok', value: st.maxAbsErr_sin2cos2 });
+    report.fp.push({ key: 'fp/stress/maxRelErr_expLog', level: 'ok', value: st.maxRelErr_expLog });
+    report.fp.push({ key: 'fp/stress/maxRelErr_sqrt2', level: 'ok', value: st.maxRelErr_sqrt2 });
+    report.fp.push({ key: 'fp/stress/maxRelErr_invInv', level: 'ok', value: st.maxRelErr_invInv });
+    report.fp.push({ key: 'fp/stress/badCount', level: stressLevel, value: st.badCount });
+    report.fp.push({ key: 'fp/stress/nanInfCount', level: (st.nanInfCount > 0) ? 'warn' : 'ok', value: st.nanInfCount });
+
+    for (const b of fpProfile.performanceBenches) {
+      report.fp.push({ key: `fp/${b.label}/iters`, level: 'ok', value: b.iters });
+      report.fp.push({ key: `fp/${b.label}/medianMs`, level: 'ok', value: b.medianMs });
+      report.fp.push({ key: `fp/${b.label}/nsPerIter`, level: 'ok', value: b.nsPerIter });
+    }
+  }
+
+  function renderFpFromProfile(fpProfile, raw) {
+    $fpProfile.textContent = JSON.stringify(fpProfile, null, 2);
+
+    fpBody.innerHTML = '';
+    for (const t0 of fpProfile.deterministicTests) {
+      const valStr = (typeof t0.value === 'object') ? JSON.stringify(t0.value) : String(t0.value);
+      addRow(fpBody, t0.level, t0.key, valStr);
+    }
+
+    const st = fpProfile.stressInvariants;
+    const stressLevel = (st.nanInfCount > 0 || st.badCount > 0) ? 'warn' : 'ok';
+    addRow(fpBody, stressLevel, 'fp/stress/summary', `N=${st.N}, bad=${st.badCount}, nanInf=${st.nanInfCount}`);
+
+    addRow(fpBody, 'ok', 'fp/bench/info', t('fp.benchInfo'));
+
+    for (const b of fpProfile.performanceBenches) {
+      addRow(fpBody, 'ok', b.label, `iters=${b.iters}, medianMs=${b.medianMs}, ns/iter=${b.nsPerIter}`);
+    }
+
+    if (stressLevel === 'warn') {
+      addRow(fpBody, 'warn', 'fp/diagnostic', t('fp.diagWarn'));
+    } else {
+      addRow(fpBody, 'ok', 'fp/diagnostic', t('fp.diagOk'));
+    }
+  }
+
+  function runFpSuite(report, options) {
+    const seed = 0xC0FFEE;
+
+    const fpProfile = FP_SUITE.run({
+      raw: options.raw,
+      seed,
+      stressN: options.stressN,
+      benchCfg: { targetMs: options.benchTargetMs, runs: options.benchRuns, warmup: 1 }
+    });
+
+    report.fpProfile = fpProfile;
+    buildFpReport(report, fpProfile);
+    renderFpFromProfile(fpProfile, options.raw);
+  }
+
+  async function audioTests(report, options) {
+    const out = report.audio;
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) {
+      out.push({ key: 'audio/AudioContext', level: 'fail', value: 'not supported' });
+      addRow(audioBody, 'fail', t('row.audioContext'), t('row.notSupported'));
+      return;
+    }
+    addRow(audioBody, 'ok', t('row.audioContext'), t('row.available'));
+    out.push({ key: 'audio/AudioContext', level: 'ok', value: 'supported' });
+
+    let ctx;
+    try {
+      ctx = new AudioCtx({ latencyHint: 'interactive' });
+      if (ctx.state !== 'running') {
+        try { await ctx.resume(); } catch {}
+      }
+    } catch (e) {
+      addRow(audioBody, 'fail', t('row.createAudioContext'), e?.message || String(e));
+      out.push({ key: 'audio/create_ctx_error', level: 'fail', value: e?.message || String(e) });
+      return;
+    }
+
+    const raw = options.raw;
+    const secure = window.isSecureContext;
+
+    addRow(audioBody, 'ok', t('row.secureContext'), secure ? t('common.yes') : t('common.no'));
+    out.push({ key: 'audio/isSecureContext', level: 'ok', value: secure });
+
+    const sr = ctx.sampleRate;
+    addRow(audioBody, 'ok', t('row.ctxSampleRate'), raw ? fmt(sr) : bucketSampleRate(sr));
+    out.push({ key: 'audio/sampleRate', level: 'ok', value: sr });
+
+    const baseLat = ('baseLatency' in ctx) ? ctx.baseLatency : null;
+    addRow(audioBody, 'ok', t('row.baseLatency'), raw ? fmt(baseLat) : bucketLatencySeconds(baseLat));
+    out.push({ key: 'audio/baseLatency', level: 'ok', value: baseLat });
+
+    const outLat = ('outputLatency' in ctx) ? ctx.outputLatency : null;
+    addRow(audioBody, 'ok', t('row.outputLatency'), raw ? fmt(outLat) : bucketLatencySeconds(outLat));
+    out.push({ key: 'audio/outputLatency', level: 'ok', value: outLat });
+
+    if (raw) {
+      addRow(audioBody, 'ok', 'navigator.userAgent', navigator.userAgent);
+      out.push({ key: 'meta/userAgent', level: 'ok', value: navigator.userAgent });
+
+      addRow(audioBody, 'ok', 'navigator.platform', navigator.platform || 'n/a');
+      out.push({ key: 'meta/platform', level: 'ok', value: navigator.platform || null });
+
+      addRow(audioBody, 'ok', 'hardwareConcurrency', navigator.hardwareConcurrency ?? 'n/a');
+      out.push({ key: 'meta/hardwareConcurrency', level: 'ok', value: navigator.hardwareConcurrency ?? null });
+
+      addRow(audioBody, 'ok', 'deviceMemory', navigator.deviceMemory ?? 'n/a');
+      out.push({ key: 'meta/deviceMemory', level: 'ok', value: navigator.deviceMemory ?? null });
+    }
+
+    try {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 440;
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+
+      const gain = ctx.createGain();
+      gain.gain.value = 0.0;
+
+      osc.connect(analyser);
+      analyser.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      await new Promise(r => setTimeout(r, 90));
+
+      let rms = 0;
+      if (typeof analyser.getFloatTimeDomainData === 'function') {
+        const buf = new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(buf);
+        let sumSq = 0;
+        for (let i = 0; i < buf.length; i++) sumSq += buf[i] * buf[i];
+        rms = Math.sqrt(sumSq / buf.length);
+      } else {
+        const buf = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(buf);
+        let sumSq = 0;
+        for (let i = 0; i < buf.length; i++) {
+          const x = (buf[i] - 128) / 128;
+          sumSq += x * x;
+        }
+        rms = Math.sqrt(sumSq / buf.length);
+      }
+
+      const signalDetected = (rms > 0.02);
+      addRow(audioBody, signalDetected ? 'ok' : 'warn',
+        t('row.realtimeGraph'),
+        raw ? `signal=${signalDetected}, rms=${fmt(rms)}` : (signalDetected ? t('row.signalDetected') : t('row.signalNotDetected'))
+      );
+      out.push({ key: 'audio/realtime_signalDetected', level: signalDetected ? 'ok' : 'warn', value: { signalDetected, rms } });
+
+      osc.stop();
+    } catch (e) {
+      addRow(audioBody, 'warn', t('row.realtimeGraph'), e?.message || String(e));
+      out.push({ key: 'audio/realtime_error', level: 'warn', value: e?.message || String(e) });
+    }
+
+    try {
+      const duration = Math.max(0.2, Number(options.durationSec) || 1.0);
+
+      const chosen = options.sampleRateMode;
+      const offlineSR = (chosen === 'auto') ? sr : Number(chosen);
+      const frames = Math.max(1, Math.floor(duration * offlineSR));
+
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (!OfflineCtx) {
+        addRow(audioBody, 'warn', t('row.offlineAudioContext'), t('row.notSupported'));
+        out.push({ key: 'audio/offline_supported', level: 'warn', value: false });
+      } else {
+        const octx = new OfflineCtx(1, frames, offlineSR);
+
+        const osc = octx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = 997;
+
+        const biquad = octx.createBiquadFilter();
+        biquad.type = 'lowpass';
+        biquad.frequency.value = 2500;
+        biquad.Q.value = 0.707;
+
+        const shaper = octx.createWaveShaper();
+        shaper.oversample = '4x';
+        shaper.curve = (() => {
+          const n = 2048;
+          const curve = new Float32Array(n);
+          for (let i = 0; i < n; i++) {
+            const x = (i * 2) / (n - 1) - 1;
+            const k = 2.2;
+            curve[i] = Math.tanh(k * x);
+          }
+          return curve;
+        })();
+
+        const comp = octx.createDynamicsCompressor();
+        comp.threshold.value = -24;
+        comp.knee.value = 30;
+        comp.ratio.value = 12;
+        comp.attack.value = 0.003;
+        comp.release.value = 0.25;
+
+        const gain = octx.createGain();
+        gain.gain.value = 0.25;
+
+        osc.connect(biquad);
+        biquad.connect(shaper);
+        shaper.connect(comp);
+        comp.connect(gain);
+        gain.connect(octx.destination);
+
+        osc.start(0);
+        osc.stop(duration);
+
+        const t0 = performance.now();
+        const rendered = await octx.startRendering();
+        const t1 = performance.now();
+        const renderMs = t1 - t0;
+
+        const ch0 = rendered.getChannelData(0);
+        const stats = computeStats(ch0);
+
+        const doChecksum = options.checksum;
+        const cs = doChecksum ? checksum32FromFloat32(ch0) : null;
+
+        addRow(audioBody, 'ok', t('row.offlineRender'),
+          raw
+            ? tpl(t('fmt.offlineRenderRaw'), { sr: offlineSR, frames, dur: fmt(duration) })
+            : tpl(t('fmt.offlineRender'), { sr: offlineSR, dur: fmt(duration) })
+        );
+        addRow(audioBody, 'ok', t('row.offlineRenderTime'), raw ? fmt(renderMs) : Number(renderMs.toFixed(1)));
+        addRow(audioBody, 'ok', t('row.offlineStats'),
+          raw
+            ? tpl(t('fmt.offlineStatsRaw'), { mean: fmt(stats.mean), rms: fmt(stats.rms), peak: fmt(stats.peak), zc: stats.zeroCrossings })
+            : tpl(t('fmt.offlineStats'), { rms: fmt(stats.rms), peak: fmt(stats.peak) })
+        );
+        if (doChecksum) addRow(audioBody, 'ok', t('row.offlineChecksum32'), cs);
+
+        out.push({ key: 'audio/offline_render_ms', level: 'ok', value: renderMs });
+        out.push({ key: 'audio/offline_rms', level: 'ok', value: stats.rms });
+        out.push({ key: 'audio/offline_peak', level: 'ok', value: stats.peak });
+        out.push({ key: 'audio/offline_mean', level: 'ok', value: stats.mean });
+        out.push({ key: 'audio/offline_zeroCrossings', level: 'ok', value: stats.zeroCrossings });
+        if (cs) out.push({ key: 'audio/offline_checksum32', level: 'ok', value: cs });
+
+        out.push({
+          key: 'audio/offline',
+          level: 'ok',
+          value: {
+            sampleRate: offlineSR,
+            frames,
+            duration,
+            renderMs,
+            stats,
+            checksum32: cs,
+            first10: raw ? Array.from(ch0.slice(0, 10)).map(v => Number(v.toFixed(8))) : undefined
+          }
+        });
+      }
+    } catch (e) {
+      addRow(audioBody, 'warn', t('row.offlineRender'), e?.message || String(e));
+      out.push({ key: 'audio/offline_error', level: 'warn', value: e?.message || String(e) });
+    } finally {
+      try { await ctx.close(); } catch {}
+    }
+  }
+
+  function flatten(report) {
+    const map = new Map();
+
+    for (const item of report.fp) {
+      map.set(item.key, (typeof item.value === 'object') ? JSON.stringify(item.value) : String(item.value));
+    }
+    for (const item of report.audio) {
+      map.set(item.key, (typeof item.value === 'object') ? JSON.stringify(item.value) : String(item.value));
+    }
+
+    map.set('meta/timestamp', report.meta.timestamp);
+    map.set('meta/isSecureContext', String(report.meta.isSecureContext));
+    map.set('meta/raw', String(report.meta.raw));
+    map.set('meta/sampleRateMode', String(report.meta.sampleRateMode));
+    map.set('meta/durationSec', String(report.meta.durationSec));
+    map.set('meta/checksum', String(report.meta.checksum));
+    map.set('meta/stressN', String(report.meta.stressN));
+    map.set('meta/benchTargetMs', String(report.meta.benchTargetMs));
+    map.set('meta/benchRuns', String(report.meta.benchRuns));
+
+    return map;
+  }
+
+  function renderDiff(current, imported) {
+    const a = flatten(current);
+    const b = flatten(imported);
+
+    const keys = new Set([...a.keys(), ...b.keys()]);
+    const diffs = [];
+
+    for (const k of keys) {
+      const va = a.get(k);
+      const vb = b.get(k);
+      if (va !== vb) diffs.push({ key: k, now: va ?? t('diff.missing'), imported: vb ?? t('diff.missing') });
+    }
+
+    diffBody.innerHTML = '';
+    if (diffs.length === 0) {
+      diffCard.style.display = 'block';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="mono">—</td><td class="mono">${t('diff.match')}</td><td class="mono">${t('diff.match')}</td>`;
+      diffBody.appendChild(tr);
+      return;
+    }
+
+    diffs.sort((x, y) => x.key.localeCompare(y.key));
+
+    for (const d of diffs) {
+      const tr = document.createElement('tr');
+      const tdK = document.createElement('td');
+      const tdA = document.createElement('td');
+      const tdB = document.createElement('td');
+      tdK.className = 'mono';
+      tdA.className = 'mono';
+      tdB.className = 'mono';
+      tdK.textContent = d.key;
+      tdA.textContent = d.now;
+      tdB.textContent = d.imported;
+      tr.appendChild(tdK);
+      tr.appendChild(tdA);
+      tr.appendChild(tdB);
+      diffBody.appendChild(tr);
+    }
+    diffCard.style.display = 'block';
+  }
+
+  function downloadJSON(obj, filename = 'report.json') {
+    const text = JSON.stringify(obj, null, 2);
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function optionsFromUI() {
+    const raw = !!$raw.checked;
+    const checksum = !!$checksum.checked;
+    const sampleRateMode = $sr.value;
+    const durationSec = Number($dur.value || 1.0);
+
+    let stressN = Number($stressN.value || 200000);
+    if (!Number.isFinite(stressN) || stressN < 10000) stressN = 200000;
+
+    let benchTargetMs = Number($benchMs.value || 250);
+    if (!Number.isFinite(benchTargetMs) || benchTargetMs < 50) benchTargetMs = 250;
+
+    let benchRuns = Math.floor(Number($benchRuns.value || 7));
+    if (!Number.isFinite(benchRuns) || benchRuns < 3) benchRuns = 7;
+    if (benchRuns % 2 === 0) benchRuns += 1;
+
+    return { raw, checksum, sampleRateMode, durationSec, stressN, benchTargetMs, benchRuns };
+  }
+
+  function rebuildFromLastReport() {
+    if (!lastReport) return;
+
+    // RU: Перерисовать таблицы FP/Audio в выбранном языке без повторного запуска тестов.
+    // EN: Re-render FP/Audio tables in the selected language without re-running tests.
+    // ZH-CN: 在不重新运行测试的情况下，用所选语言重绘 FP/Audio 表。
+    // VI: Vẽ lại bảng FP/Audio theo ngôn ngữ đã chọn mà không chạy lại test.
+    fpBody.innerHTML = '';
+    audioBody.innerHTML = '';
+    if (lastReport.fpProfile) renderFpFromProfile(lastReport.fpProfile, !!lastReport.meta.raw);
+
+    renderAudioFromReport(lastReport);
+
+    if (importedReport) renderDiff(lastReport, importedReport);
+  }
+
+  function audioMapFromReport(report) {
+    const map = new Map();
+    for (const item of report.audio) map.set(item.key, item);
+    return map;
+  }
+
+  function renderAudioFromReport(report) {
+    const map = audioMapFromReport(report);
+    const raw = !!report.meta.raw;
+
+    audioBody.innerHTML = '';
+
+    const ac = map.get('audio/AudioContext');
+    const supported = ac && ac.value === 'supported';
+
+    addRow(audioBody, supported ? 'ok' : 'fail', t('row.audioContext'), supported ? t('row.available') : t('row.notSupported'));
+    if (!supported) return;
+
+    const ctxErr = map.get('audio/create_ctx_error');
+    if (ctxErr) {
+      addRow(audioBody, 'fail', t('row.createAudioContext'), ctxErr.value);
+      return;
+    }
+
+    const secure = map.get('audio/isSecureContext')?.value;
+    if (typeof secure === 'boolean') {
+      addRow(audioBody, 'ok', t('row.secureContext'), secure ? t('common.yes') : t('common.no'));
+    }
+
+    const sr = map.get('audio/sampleRate')?.value;
+    if (typeof sr === 'number') addRow(audioBody, 'ok', t('row.ctxSampleRate'), raw ? fmt(sr) : bucketSampleRate(sr));
+
+    const baseLat = map.get('audio/baseLatency')?.value;
+    addRow(audioBody, 'ok', t('row.baseLatency'), raw ? fmt(baseLat) : bucketLatencySeconds(baseLat));
+
+    const outLat = map.get('audio/outputLatency')?.value;
+    addRow(audioBody, 'ok', t('row.outputLatency'), raw ? fmt(outLat) : bucketLatencySeconds(outLat));
+
+    if (raw) {
+      const ua = map.get('meta/userAgent')?.value;
+      if (ua) addRow(audioBody, 'ok', 'navigator.userAgent', ua);
+
+      const platform = map.get('meta/platform')?.value;
+      addRow(audioBody, 'ok', 'navigator.platform', platform || 'n/a');
+
+      const hc = map.get('meta/hardwareConcurrency')?.value;
+      addRow(audioBody, 'ok', 'hardwareConcurrency', (hc ?? 'n/a'));
+
+      const dm = map.get('meta/deviceMemory')?.value;
+      addRow(audioBody, 'ok', 'deviceMemory', (dm ?? 'n/a'));
+    }
+
+    const rt = map.get('audio/realtime_signalDetected')?.value;
+    if (rt && typeof rt === 'object') {
+      const signalDetected = !!rt.signalDetected;
+      const rms = rt.rms;
+      addRow(audioBody, signalDetected ? 'ok' : 'warn',
+        t('row.realtimeGraph'),
+        raw ? `signal=${signalDetected}, rms=${fmt(rms)}` : (signalDetected ? t('row.signalDetected') : t('row.signalNotDetected'))
+      );
+    } else {
+      const rtErr = map.get('audio/realtime_error')?.value;
+      if (rtErr) addRow(audioBody, 'warn', t('row.realtimeGraph'), rtErr);
+    }
+
+    const offlineSupportedItem = map.get('audio/offline_supported');
+    if (offlineSupportedItem && offlineSupportedItem.value === false) {
+      addRow(audioBody, 'warn', t('row.offlineAudioContext'), t('row.notSupported'));
+      return;
+    }
+
+    const offlineErr = map.get('audio/offline_error')?.value;
+    const offlineObj = map.get('audio/offline')?.value;
+
+    if (offlineErr && !offlineObj) {
+      addRow(audioBody, 'warn', t('row.offlineRender'), offlineErr);
+      return;
+    }
+
+    if (offlineObj && typeof offlineObj === 'object') {
+      const offlineSR = offlineObj.sampleRate;
+      const frames = offlineObj.frames;
+      const dur = offlineObj.duration;
+      const renderMs = offlineObj.renderMs;
+      const stats = offlineObj.stats || {};
+      const cs = offlineObj.checksum32;
+
+      addRow(audioBody, 'ok', t('row.offlineRender'),
+        raw
+          ? tpl(t('fmt.offlineRenderRaw'), { sr: offlineSR, frames, dur: fmt(dur) })
+          : tpl(t('fmt.offlineRender'), { sr: offlineSR, dur: fmt(dur) })
+      );
+      addRow(audioBody, 'ok', t('row.offlineRenderTime'), raw ? fmt(renderMs) : Number(renderMs.toFixed(1)));
+
+      addRow(audioBody, 'ok', t('row.offlineStats'),
+        raw
+          ? tpl(t('fmt.offlineStatsRaw'), { mean: fmt(stats.mean), rms: fmt(stats.rms), peak: fmt(stats.peak), zc: stats.zeroCrossings })
+          : tpl(t('fmt.offlineStats'), { rms: fmt(stats.rms), peak: fmt(stats.peak) })
+      );
+
+      if (report.meta.checksum && cs) addRow(audioBody, 'ok', t('row.offlineChecksum32'), cs);
+    }
+  }
+
+  async function runAll() {
+    fpBody.innerHTML = '';
+    audioBody.innerHTML = '';
+    diffBody.innerHTML = '';
+    diffCard.style.display = 'none';
+    $export.disabled = true;
+
+    $run.disabled = true;
+    setStatusKey('status.running');
+
+    const opts = optionsFromUI();
+    const report = {
+      meta: {
+        timestamp: new Date().toISOString(),
+        isSecureContext: window.isSecureContext,
+        raw: opts.raw,
+        checksum: opts.checksum,
+        sampleRateMode: opts.sampleRateMode,
+        durationSec: opts.durationSec,
+        stressN: opts.stressN,
+        benchTargetMs: opts.benchTargetMs,
+        benchRuns: opts.benchRuns
+      },
+      fp: [],
+      audio: [],
+      fpProfile: null
+    };
+
+    try {
+      runFpSuite(report, opts);
+      await audioTests(report, opts);
+
+      lastReport = report;
+      importedReport = null;
+      $export.disabled = false;
+      setStatusKey('status.done');
+    } catch (e) {
+      setStatusKey('status.error');
+      addRow(audioBody, 'fail', 'Unhandled error', e?.message || String(e));
+    } finally {
+      $run.disabled = false;
+    }
+  }
+
+  $run.addEventListener('click', runAll);
+  $clear.addEventListener('click', clearTables);
+
+  $export.addEventListener('click', () => {
+    if (!lastReport) return;
+    const safeName = `report_${lastReport.meta.timestamp.replaceAll(':','-')}.json`;
+    downloadJSON(lastReport, safeName);
+  });
+
+  $importBtn.addEventListener('click', () => {
+    $importFile.value = '';
+    $importFile.click();
+  });
+
+  $importFile.addEventListener('change', async () => {
+    const f = $importFile.files && $importFile.files[0];
+    if (!f) return;
+
+    if (!lastReport) {
+      setStatusKey('status.runFirst');
+      return;
+    }
+
+    try {
+      const text = await f.text();
+      const imported = JSON.parse(text);
+      importedReport = imported;
+      renderDiff(lastReport, imported);
+      setStatusKey('status.diffDone');
+    } catch {
+      setStatusKey('status.jsonError');
+    }
+  });
+
+  $lang.addEventListener('change', () => {
+    setLanguage($lang.value, { persist: true, rerender: true });
+  });
+
+  // RU: Инициализация языка
+  // EN: Init language
+  // ZH-CN: 初始化语言
+  // VI: Khởi tạo ngôn ngữ
+  setLanguage(detectInitialLang(), { persist: false, rerender: false });
+  applyDynamicI18N();
+})();
+</script>
+</body>
+</html>
